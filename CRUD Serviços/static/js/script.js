@@ -16,6 +16,10 @@ document.addEventListener("DOMContentLoaded", function () {
     "customerAddressSection"
   );
   const geocodeBtn = document.getElementById("btnGeocode");
+  const useClientAddressCheckbox = document.getElementById("useClientAddress");
+  const serviceAddressSection = document.getElementById(
+    "serviceAddressSection"
+  );
 
   // Elementos para geocodificação
   const addressInput = document.getElementById("address");
@@ -23,6 +27,9 @@ document.addEventListener("DOMContentLoaded", function () {
   const longitudeDisplay = document.getElementById("longitudeDisplay");
   const latitudeSpan = document.getElementById("latitude");
   const longitudeSpan = document.getElementById("longitude");
+
+  // Cache para dados de clientes
+  let clientsData = [];
 
   // Carregar clientes ao iniciar
   loadCustomers();
@@ -33,17 +40,97 @@ document.addEventListener("DOMContentLoaded", function () {
     loadCustomers();
   });
 
-  // Eventos para alternar entre cliente existente e novo cliente
+  // Evento para alternar entre cliente existente e novo cliente
   customerTypeRadios.forEach((radio) => {
     radio.addEventListener("change", function () {
       if (this.value === "existing") {
         existingCustomerSection.style.display = "block";
         newCustomerSection.style.display = "none";
+
+        // Mostrar opção de usar endereço do cliente somente quando é cliente existente
+        document.getElementById("useClientAddressWrapper").style.display =
+          "block";
       } else {
         existingCustomerSection.style.display = "none";
         newCustomerSection.style.display = "block";
+
+        // Esconder opção de usar endereço do cliente e resetar quando for cliente novo
+        document.getElementById("useClientAddressWrapper").style.display =
+          "none";
+        useClientAddressCheckbox.checked = false;
+        serviceAddressSection.style.display = "block";
       }
     });
+  });
+
+  // Evento para usar endereço cadastrado do cliente
+  useClientAddressCheckbox.addEventListener("change", function () {
+    if (this.checked) {
+      // Ocultar campos de endereço do serviço e geocodificação
+      serviceAddressSection.style.display = "none";
+
+      // Tentar preencher automaticamente a latitude e longitude com os dados do cliente
+      const selectedClientId = document.getElementById("customerId").value;
+      const selectedClient = clientsData.find(
+        (client) =>
+          client.id === selectedClientId || client.code === selectedClientId
+      );
+
+      if (
+        selectedClient &&
+        selectedClient.latitude &&
+        selectedClient.longitude
+      ) {
+        // Se o cliente tem coordenadas cadastradas, usar essas
+        latitudeSpan.textContent = selectedClient.latitude;
+        longitudeSpan.textContent = selectedClient.longitude;
+        latitudeDisplay.style.display = "inline";
+        longitudeDisplay.style.display = "inline";
+      } else {
+        // Se não tem coordenadas, limpar os campos de latitude e longitude
+        latitudeSpan.textContent = "";
+        longitudeSpan.textContent = "";
+        latitudeDisplay.style.display = "none";
+        longitudeDisplay.style.display = "none";
+      }
+    } else {
+      // Mostrar campos de endereço do serviço e geocodificação
+      serviceAddressSection.style.display = "block";
+
+      // Limpar latitude e longitude
+      latitudeSpan.textContent = "";
+      longitudeSpan.textContent = "";
+      latitudeDisplay.style.display = "none";
+      longitudeDisplay.style.display = "none";
+    }
+  });
+
+  // Evento ao mudar o cliente selecionado
+  document.getElementById("customerId").addEventListener("change", function () {
+    // Se estiver usando endereço do cliente, atualizar as coordenadas
+    if (useClientAddressCheckbox.checked) {
+      const selectedClientId = this.value;
+      const selectedClient = clientsData.find(
+        (client) =>
+          client.id === selectedClientId || client.code === selectedClientId
+      );
+
+      if (
+        selectedClient &&
+        selectedClient.latitude &&
+        selectedClient.longitude
+      ) {
+        latitudeSpan.textContent = selectedClient.latitude;
+        longitudeSpan.textContent = selectedClient.longitude;
+        latitudeDisplay.style.display = "inline";
+        longitudeDisplay.style.display = "inline";
+      } else {
+        latitudeSpan.textContent = "";
+        longitudeSpan.textContent = "";
+        latitudeDisplay.style.display = "none";
+        longitudeDisplay.style.display = "none";
+      }
+    }
   });
 
   // Evento para mostrar/ocultar seção de motorista
@@ -100,8 +187,17 @@ document.addEventListener("DOMContentLoaded", function () {
   form.addEventListener("submit", async function (e) {
     e.preventDefault();
 
-    // Validar se o endereço foi geocodificado
-    if (!latitudeSpan.textContent || !longitudeSpan.textContent) {
+    // Verificar se está usando o endereço do cliente ou endereço personalizado
+    const isUsingClientAddress =
+      document.getElementById("useClientAddress").checked &&
+      document.querySelector('input[name="customerType"]:checked').value ===
+        "existing";
+
+    // Validar se o endereço foi geocodificado quando não estiver usando endereço do cliente
+    if (
+      !isUsingClientAddress &&
+      (!latitudeSpan.textContent || !longitudeSpan.textContent)
+    ) {
       alert("Por favor, geocodifique o endereço antes de enviar.");
       return;
     }
@@ -112,9 +208,6 @@ document.addEventListener("DOMContentLoaded", function () {
       title: document.getElementById("title").value,
       note: document.getElementById("note").value,
       type: document.getElementById("type").value,
-      address: addressInput.value,
-      latitude: parseFloat(latitudeSpan.textContent),
-      longitude: parseFloat(longitudeSpan.textContent),
       upsert: true,
     };
 
@@ -122,10 +215,45 @@ document.addEventListener("DOMContentLoaded", function () {
     const customerType = document.querySelector(
       'input[name="customerType"]:checked'
     ).value;
+
     if (customerType === "existing") {
       const customerId = document.getElementById("customerId").value;
-      if (customerId) {
-        serviceData.customer_id = customerId;
+      if (!customerId) {
+        alert("Por favor, selecione um cliente.");
+        return;
+      }
+
+      serviceData.customer_id = customerId;
+
+      // Se estiver usando o endereço do cliente
+      if (isUsingClientAddress) {
+        // Encontrar cliente selecionado para pegar seu endereço e coordenadas
+        const selectedClient = clientsData.find(
+          (client) => client.id === customerId || client.code === customerId
+        );
+
+        if (selectedClient) {
+          serviceData.address = selectedClient.address || "";
+
+          // Se o cliente tiver coordenadas cadastradas
+          if (selectedClient.latitude && selectedClient.longitude) {
+            serviceData.latitude = parseFloat(selectedClient.latitude);
+            serviceData.longitude = parseFloat(selectedClient.longitude);
+          } else {
+            alert(
+              "O cliente selecionado não tem coordenadas cadastradas. Por favor, desmarque a opção 'Utilizar endereço cadastrado do cliente' e informe um endereço para o serviço."
+            );
+            return;
+          }
+        } else {
+          alert("Não foi possível obter os dados do cliente selecionado.");
+          return;
+        }
+      } else {
+        // Usando endereço personalizado
+        serviceData.address = addressInput.value;
+        serviceData.latitude = parseFloat(latitudeSpan.textContent);
+        serviceData.longitude = parseFloat(longitudeSpan.textContent);
       }
     } else {
       // Cliente novo
@@ -136,7 +264,12 @@ document.addEventListener("DOMContentLoaded", function () {
         upsert: true,
       };
 
-      // Verificar se usa o mesmo endereço ou um endereço próprio
+      // Usando endereço personalizado para o serviço
+      serviceData.address = addressInput.value;
+      serviceData.latitude = parseFloat(latitudeSpan.textContent);
+      serviceData.longitude = parseFloat(longitudeSpan.textContent);
+
+      // Verificar se usa o mesmo endereço ou um endereço próprio para o cliente
       if (sameAddressCheckbox.checked) {
         serviceData.customer.address = addressInput.value;
       } else {
@@ -206,6 +339,11 @@ document.addEventListener("DOMContentLoaded", function () {
             // Ocultar seção de motorista e endereço adicional
             driverSection.style.display = "none";
             customerAddressSection.style.display = "block";
+            serviceAddressSection.style.display = "block";
+
+            // Mostrar opção de usar endereço do cliente
+            document.getElementById("useClientAddressWrapper").style.display =
+              "block";
 
             // Restaurar foco no campo de código
             document.getElementById("code").focus();
@@ -240,6 +378,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
       // Verifica se a resposta é um array ou tem uma propriedade data
       const customers = Array.isArray(data) ? data : data.data || [];
+
+      // Armazenar dados dos clientes para uso posterior
+      clientsData = customers;
 
       if (customers && customers.length > 0) {
         customers.forEach((customer) => {

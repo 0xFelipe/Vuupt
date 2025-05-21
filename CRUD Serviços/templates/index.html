@@ -47,34 +47,6 @@
       </div>
 
       <div class="mb-3">
-        <label for="address" class="form-label">Endereço</label>
-        <input
-          type="text"
-          class="form-control"
-          id="address"
-          name="address"
-          required
-        />
-        <button type="button" class="btn btn-secondary mt-2" id="btnGeocode">
-          Geocodificar
-        </button>
-        <div id="geocodeResult" class="mt-2">
-          <span
-            id="latitudeDisplay"
-            class="badge bg-info me-2"
-            style="display: none"
-            >Latitude: <span id="latitude"></span
-          ></span>
-          <span
-            id="longitudeDisplay"
-            class="badge bg-info"
-            style="display: none"
-            >Longitude: <span id="longitude"></span
-          ></span>
-        </div>
-      </div>
-
-      <div class="mb-3">
         <label class="form-label">Cliente</label>
         <div class="form-check">
           <input
@@ -116,6 +88,19 @@
         >
           Recarregar Clientes
         </button>
+
+        <!-- Nova opção para usar endereço cadastrado do cliente -->
+        <div id="useClientAddressWrapper" class="form-check mt-2">
+          <input
+            class="form-check-input"
+            type="checkbox"
+            id="useClientAddress"
+            name="useClientAddress"
+          />
+          <label class="form-check-label" for="useClientAddress">
+            Utilizar endereço cadastrado do cliente
+          </label>
+        </div>
       </div>
 
       <!-- Formulário para Novo Cliente -->
@@ -184,6 +169,35 @@
               />
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- Seção de endereço do serviço (pode ser ocultada) -->
+      <div id="serviceAddressSection" class="mb-3">
+        <label for="address" class="form-label">Endereço do Serviço</label>
+        <input
+          type="text"
+          class="form-control"
+          id="address"
+          name="address"
+          required
+        />
+        <button type="button" class="btn btn-secondary mt-2" id="btnGeocode">
+          Geocodificar
+        </button>
+        <div id="geocodeResult" class="mt-2">
+          <span
+            id="latitudeDisplay"
+            class="badge bg-info me-2"
+            style="display: none"
+            >Latitude: <span id="latitude"></span
+          ></span>
+          <span
+            id="longitudeDisplay"
+            class="badge bg-info"
+            style="display: none"
+            >Longitude: <span id="longitude"></span
+          ></span>
         </div>
       </div>
 
