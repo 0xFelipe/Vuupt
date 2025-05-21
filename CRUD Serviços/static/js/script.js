@@ -245,9 +245,6 @@ document.addEventListener("DOMContentLoaded", function () {
             );
             return;
           }
-        } else {
-          alert("Não foi possível obter os dados do cliente selecionado.");
-          return;
         }
       } else {
         // Usando endereço personalizado
