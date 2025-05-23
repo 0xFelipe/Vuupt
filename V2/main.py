@@ -72,6 +72,9 @@ async def get_contatos():
             response = await client.get(f"{BASE_URL}/customers", headers=headers)
             response.raise_for_status()
             data = response.json()
+            # Extrair array 'data' se existir
+            if isinstance(data, dict) and 'data' in data:
+                return data['data']
             return data
     except httpx.HTTPStatusError as e:
         raise HTTPException(status_code=e.response.status_code, 
@@ -88,6 +91,9 @@ async def get_drivers():
             response = await client.get(f"{BASE_URL}/agents", headers=headers)
             response.raise_for_status()
             data = response.json()
+            # Extrair array 'data' se existir
+            if isinstance(data, dict) and 'data' in data:
+                return data['data']
             return data
     except httpx.HTTPStatusError as e:
         raise HTTPException(status_code=e.response.status_code, 
@@ -177,8 +183,14 @@ async def get_operational_bases():
             )
             response.raise_for_status()
             data = response.json()
+            
+            # Extrair array 'data' se existir
+            if isinstance(data, dict) and 'data' in data:
+                data = data['data']
+            
             if not isinstance(data, list):
                 return []
+            
             normalized = []
             for item in data:
                 if isinstance(item, dict):
@@ -189,6 +201,7 @@ async def get_operational_bases():
                     })
             return normalized
         except Exception as e:
+            print(f"Erro ao buscar bases: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/agents")
@@ -198,8 +211,14 @@ async def get_agents_for_routes():
             response = await client.get(f"{BASE_URL}/agents", headers=headers)
             response.raise_for_status()
             data = response.json()
+            
+            # Extrair array 'data' se existir
+            if isinstance(data, dict) and 'data' in data:
+                data = data['data']
+            
             if not isinstance(data, list):
                 return []
+            
             normalized = []
             for item in data:
                 if isinstance(item, dict):
@@ -210,6 +229,7 @@ async def get_agents_for_routes():
                     })
             return normalized
         except Exception as e:
+            print(f"Erro ao buscar agentes: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/vehicles")
@@ -219,8 +239,14 @@ async def get_vehicles_for_routes():
             response = await client.get(f"{BASE_URL}/vehicles", headers=headers)
             response.raise_for_status()
             data = response.json()
+            
+            # Extrair array 'data' se existir
+            if isinstance(data, dict) and 'data' in data:
+                data = data['data']
+            
             if not isinstance(data, list):
                 return []
+            
             normalized = []
             for item in data:
                 if isinstance(item, dict):
@@ -231,6 +257,7 @@ async def get_vehicles_for_routes():
                     })
             return normalized
         except Exception as e:
+            print(f"Erro ao buscar veículos: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/services")
@@ -243,23 +270,39 @@ async def get_services_for_routes():
             )
             response.raise_for_status()
             data = response.json()
+            
+            # Extrair array 'data' se existir
+            if isinstance(data, dict) and 'data' in data:
+                data = data['data']
+            
             if not isinstance(data, list):
                 return []
+            
             filtered_services = []
             for service in data:
                 if isinstance(service, dict):
                     route_id = service.get('route_id')
                     status = service.get('status')
-                    if route_id is None and status == 'not_assigned':
+                    
+                    # DEBUG: Remover esse print depois
+                    print(f"Serviço {service.get('id')}: status={status}, route_id={route_id}")
+                    
+                    # Filtro mais flexível - aceitar serviços sem rota OU com status específicos
+                    if route_id is None or route_id == "" or status in ['not_assigned', 'pending', 'ready', 'created']:
                         filtered_services.append({
                             'id': service.get('id'),
                             'code': service.get('code', 'N/A'),
                             'title': service.get('title', 'Sem título'),
                             'status': status,
+                            'type': service.get('type'),
                             'route_id': route_id
                         })
+            
+            print(f"Total de serviços filtrados: {len(filtered_services)}")
             return filtered_services
+            
         except Exception as e:
+            print(f"Erro ao buscar serviços: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/routes")
@@ -277,6 +320,7 @@ async def create_route(route: RouteCreate):
             response.raise_for_status()
             return response.json()
         except Exception as e:
+            print(f"Erro ao criar rota: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
 # Para rodar com "uvicorn main:app --reload"
