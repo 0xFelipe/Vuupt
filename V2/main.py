@@ -264,9 +264,16 @@ async def get_vehicles_for_routes():
 async def get_services_for_routes():
     async with httpx.AsyncClient() as client:
         try:
+            # Usar filtro específico para trazer apenas serviços com status 'not_assigned'
             response = await client.get(
-                f"{BASE_URL}/services?fields=id,code,zone_id,status,status_done,type,title,route_id",
-                headers=headers
+                f"{BASE_URL}/services",
+                headers=headers,
+                params={
+                    "fields": "id,code,zone_id,status,status_done,type,title,route_id",
+                    "filter[0][field]": "status",
+                    "filter[0][operator]": "eq",
+                    "filter[0][value]": "not_assigned"
+                }
             )
             response.raise_for_status()
             data = response.json()
@@ -278,28 +285,21 @@ async def get_services_for_routes():
             if not isinstance(data, list):
                 return []
             
-            filtered_services = []
+            # Processar os serviços retornados
+            services = []
             for service in data:
                 if isinstance(service, dict):
-                    route_id = service.get('route_id')
-                    status = service.get('status')
-                    
-                    # DEBUG: Remover esse print depois
-                    print(f"Serviço {service.get('id')}: status={status}, route_id={route_id}")
-                    
-                    # Filtro mais flexível - aceitar serviços sem rota OU com status específicos
-                    if route_id is None or route_id == "" or status in ['not_assigned', 'pending', 'ready', 'created']:
-                        filtered_services.append({
-                            'id': service.get('id'),
-                            'code': service.get('code', 'N/A'),
-                            'title': service.get('title', 'Sem título'),
-                            'status': status,
-                            'type': service.get('type'),
-                            'route_id': route_id
-                        })
+                    services.append({
+                        'id': service.get('id'),
+                        'code': service.get('code', 'N/A'),
+                        'title': service.get('title', 'Sem título'),
+                        'status': service.get('status'),
+                        'type': service.get('type'),
+                        'route_id': service.get('route_id')
+                    })
             
-            print(f"Total de serviços filtrados: {len(filtered_services)}")
-            return filtered_services
+            print(f"Total de serviços com status 'not_assigned': {len(services)}")
+            return services
             
         except Exception as e:
             print(f"Erro ao buscar serviços: {e}")
